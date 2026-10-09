@@ -6,23 +6,24 @@ export default function CORScanner() {
   const [loading, setLoading] = useState(false);
   const [extractedData, setExtractedData] = useState(null);
 
-  const handleProcess = () => {
+  const handleProcess = async () => {
     if (!rawText.trim()) return;
     setLoading(true);
 
-    // Mock AI Processing Delay (Replace with fetch to Java Backend later)
-    setTimeout(() => {
-      setExtractedData({
-        studentName: "John David",
-        studentId: "2023-10942-MN-0",
-        program: "BS Information Technology",
-        subjects: [
-          { code: "INTE 301", name: "System Integration", room: "LAB 3", schedule: "Mon 8:00 AM - 11:00 AM" },
-          { code: "COMP 202", name: "Data Structures", room: "RM 402", schedule: "Wed 1:00 PM - 4:00 PM" }
-        ]
+    try {
+      const res = await fetch("http://localhost:8000/cor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: rawText })
       });
+      const data = await res.json();
+      setExtractedData(data);
+    } catch (err) {
+      console.error("Failed to parse COR:", err);
+      alert("Error parsing schedule with backend.");
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   return (

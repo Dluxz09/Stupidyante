@@ -6,14 +6,32 @@ export default function SanctuaryNotes() {
   const [summary, setSummary] = useState('');
   const [summarizing, setSummarizing] = useState(false);
 
-  const handleSummarize = () => {
+  const handleSummarize = async () => {
     if (!note.trim()) return;
     setSummarizing(true);
 
-    setTimeout(() => {
-      setSummary("Summary: Key points cover operating system architecture, offline-first local AI execution, and secure client-side schedule extraction.");
+    try {
+      // Get summary
+      const res = await fetch("http://localhost:8000/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: note })
+      });
+      const data = await res.json();
+      setSummary(data.summary || "No summary generated.");
+
+      // Save note to SQLite database
+      await fetch("http://localhost:8000/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: note })
+      });
+    } catch (err) {
+      console.error("Backend connection failed:", err);
+      setSummary("Error connecting to local AI backend. Is it running?");
+    } finally {
       setSummarizing(false);
-    }, 1200);
+    }
   };
 
   return (
