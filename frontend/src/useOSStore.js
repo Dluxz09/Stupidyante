@@ -3,6 +3,9 @@ import { create } from 'zustand';
 export const useOSStore = create((set) => ({
   openWindows: {}, 
   activeZIndex: 10,
+  isDarkMode: true, 
+
+  toggleTheme: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
 
   openApp: (id, title, icon) => set((state) => {
     const nextZ = state.activeZIndex + 1;

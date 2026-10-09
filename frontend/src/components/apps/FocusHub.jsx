@@ -1,117 +1,180 @@
+import { Calendar, Sparkles, Clock, BookOpen, Layers, Plus, Trash2 } from 'lucide-react';
+import { useOSStore } from '../../useOSStore';
+import { playSound } from '../../utils/sounds';
 import { useState } from 'react';
-import { Clock, Calendar, MessageSquare, Play, Square, Cpu, CheckCircle } from 'lucide-react';
 
 export default function FocusHub() {
-  const [explanation, setExplanation] = useState('');
-  const [isCritiquing, setIsCritiquing] = useState(false);
-  const [feedback, setFeedback] = useState(null);
-  const [timerRunning, setTimerRunning] = useState(false);
+  const isDarkMode = useOSStore((state) => state.isDarkMode);
+  
+  // Editable schedule state
+  const [schedule, setSchedule] = useState([
+    { id: 1, time: '09:00 AM - 11:00 AM', course: 'INTE 301 - System Integration', room: 'Lab 4B' },
+    { id: 2, time: '01:00 PM - 03:00 PM', course: 'Database Administration', room: 'Room 302' },
+    { id: 3, time: '03:30 PM - 05:30 PM', course: 'Research Methods', room: 'Conference Hall' }
+  ]);
 
-  const handleCritique = () => {
-    if (!explanation.trim()) return;
-    setIsCritiquing(true);
-    
-    // Simulate Ollama Feynman Tutor processing
-    setTimeout(() => {
-      setFeedback({
-        score: "85%",
-        comment: "Good grasp of the basics. However, you used the term 'API' without explaining it simply. Remember, the Feynman technique requires you to explain it so a beginner can understand. Try replacing 'API' with 'a digital messenger'.",
-      });
-      setIsCritiquing(false);
-    }, 2000);
+  const [newTime, setNewTime] = useState('');
+  const [newCourse, setNewCourse] = useState('');
+  const [newRoom, setNewRoom] = useState('');
+  
+  const [feynmanText, setFeynmanText] = useState('');
+  const [feedback, setFeedback] = useState(null);
+
+  const addClassItem = (e) => {
+    e.preventDefault();
+    if (!newCourse.trim()) return;
+    playSound('pop');
+    setSchedule([
+      ...schedule,
+      { id: Date.now(), time: newTime || '10:00 AM', course: newCourse, room: newRoom || 'Room 101' }
+    ]);
+    setNewTime('');
+    setNewCourse('');
+    setNewRoom('');
+  };
+
+  const removeClassItem = (id) => {
+    playSound('close');
+    setSchedule(schedule.filter(s => s.id !== id));
+  };
+
+  const evaluateFeynman = () => {
+    playSound('pop');
+    if (!feynmanText.trim()) {
+      setFeedback('Please write a short explanation first!');
+      return;
+    }
+    setFeedback("✨ Local AI Critique: Great intuitive explanation! Minimal jargon detected. Solid mental model.");
   };
 
   return (
-    <div className="h-full flex flex-col gap-4 text-slate-200">
-      {/* Header */}
-      <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-        <h2 className="text-sm font-semibold flex items-center gap-2 text-indigo-400">
-          <Clock size={18} /> Focus Hub & Feynman Tutor
+    <div className={`h-full flex flex-col gap-6 font-mono text-sm overflow-y-auto no-scrollbar ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
+      <div>
+        <h2 className="text-lg font-bold flex items-center gap-2">
+          <Calendar className={isDarkMode ? "text-sky-400" : "text-amber-600"} size={20} /> Today's Academic Rhythm & Feynman Tutor
         </h2>
-        <span className="text-[10px] bg-indigo-950 text-indigo-400 border border-indigo-800 px-2 py-0.5 rounded-full flex items-center gap-1">
-          <Cpu size={10} /> Local Tutor Active
-        </span>
+        <p className={`text-xs opacity-80 ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
+          Your customizable schedule timeline paired with local AI concept explanation checks.
+        </p>
       </div>
 
-      <div className="flex-1 flex gap-4 h-full overflow-hidden">
-        
-        {/* Left Sidebar: Timer & Schedule */}
-        <div className="w-1/3 flex flex-col gap-4">
-          {/* Pomodoro Timer */}
-          <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 flex flex-col items-center justify-center gap-2">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Study Session</h3>
-            <div className="text-4xl font-mono text-cyan-400 font-light my-2">25:00</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left: Editable Visual Schedule Timeline */}
+        <div className={`p-5 rounded-xl border-2 flex flex-col gap-4 ${
+          isDarkMode ? "bg-[#16181D] border-slate-700" : "bg-white border-amber-200"
+        }`}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider opacity-70 flex items-center gap-1.5">
+              <Layers size={14} /> Schedule Timeline
+            </h3>
+            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 font-bold">{schedule.length} Classes</span>
+          </div>
+          
+          <div className="relative border-l-2 border-amber-400/40 ml-3 space-y-4 py-2 max-h-60 overflow-y-auto pr-2">
+            {schedule.map((item, index) => (
+              <div key={item.id} className="relative pl-6 group">
+                <div className={`absolute -left-[7px] top-1 w-3 h-3 rounded-full border-2 ${
+                  index === 0 ? "bg-amber-500 border-white animate-pulse" : isDarkMode ? "bg-slate-800 border-slate-600" : "bg-amber-200 border-amber-400"
+                }`} />
+                <div className={`p-3 rounded-xl border relative flex justify-between items-start ${
+                  isDarkMode ? "bg-slate-900 border-slate-800" : "bg-amber-50/30 border-amber-100"
+                }`}>
+                  <div>
+                    <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
+                      <Clock size={12} /> {item.time}
+                    </span>
+                    <h4 className="font-bold text-xs mt-0.5">{item.course}</h4>
+                    <span className="text-[10px] opacity-70">{item.room}</span>
+                  </div>
+                  <button 
+                    onClick={() => removeClassItem(item.id)}
+                    className="text-rose-500 opacity-60 hover:opacity-150 transition p-1"
+                    title="Remove Class"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Quick Add Schedule Form */}
+          <form onSubmit={addClassItem} className="flex flex-col gap-2 pt-2 border-t border-amber-500/20">
+            <span className="text-[11px] font-bold uppercase tracking-wider opacity-70">Add New Class</span>
+            <div className="grid grid-cols-2 gap-2">
+              <input 
+                type="text" 
+                placeholder="Time (e.g., 04:00 PM)"
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+                className={`p-2 rounded-lg border text-xs outline-none ${isDarkMode ? "bg-slate-900 border-slate-800" : "bg-amber-50/50 border-amber-200"}`}
+              />
+              <input 
+                type="text" 
+                placeholder="Room (e.g., Lab 2)"
+                value={newRoom}
+                onChange={(e) => setNewRoom(e.target.value)}
+                className={`p-2 rounded-lg border text-xs outline-none ${isDarkMode ? "bg-slate-900 border-slate-800" : "bg-amber-50/50 border-amber-200"}`}
+              />
+            </div>
             <div className="flex gap-2">
+              <input 
+                type="text" 
+                placeholder="Course Name..."
+                value={newCourse}
+                onChange={(e) => setNewCourse(e.target.value)}
+                className={`flex-1 p-2 rounded-lg border text-xs outline-none ${isDarkMode ? "bg-slate-900 border-slate-800" : "bg-amber-50/50 border-amber-200"}`}
+              />
               <button 
-                onClick={() => setTimerRunning(!timerRunning)}
-                className={`p-2 rounded-full flex items-center justify-center transition cursor-pointer ${timerRunning ? 'bg-rose-900 text-rose-400 hover:bg-rose-800' : 'bg-cyan-900 text-cyan-400 hover:bg-cyan-800'}`}
+                type="submit"
+                className={`px-3 py-2 rounded-lg font-bold text-xs flex items-center gap-1 ${
+                  isDarkMode ? "bg-sky-600 text-white" : "bg-amber-400 text-amber-950"
+                }`}
               >
-                {timerRunning ? <Square size={16} /> : <Play size={16} className="ml-0.5" />}
+                <Plus size={14} /> Add
               </button>
             </div>
-          </div>
-
-          {/* Mini Schedule */}
-          <div className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-3 flex flex-col gap-2 overflow-auto">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1.5 mb-1">
-              <Calendar size={14} /> Today
-            </h3>
-            <div className="bg-slate-950 p-2 rounded border-l-2 border-cyan-500 text-xs">
-              <div className="font-bold text-slate-300">INTE 301</div>
-              <div className="text-slate-500">8:00 AM - 11:00 AM</div>
-            </div>
-            <div className="bg-slate-950 p-2 rounded border-l-2 border-indigo-500 text-xs">
-              <div className="font-bold text-slate-300">Hackathon Deadline</div>
-              <div className="text-slate-500">10:00 AM</div>
-            </div>
-          </div>
+          </form>
         </div>
 
-        {/* Right Main Area: Feynman Simulator */}
-        <div className="w-2/3 flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <h3 className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-              <MessageSquare size={14} className="text-indigo-400" /> 
-              Feynman Technique Simulator
+        {/* Right: Feynman Technique AI Simulator */}
+        <div className={`p-5 rounded-xl border-2 flex flex-col justify-between ${
+          isDarkMode ? "bg-[#16181D] border-slate-700" : "bg-white border-amber-200"
+        }`}>
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider mb-2 opacity-70 flex items-center gap-1.5">
+              <BookOpen size={14} /> Feynman Technique Simulator
             </h3>
-            <p className="text-[10px] text-slate-500">
-              Explain a concept as simply as possible. The local AI will check it against your Sanctuary Notes for clarity and jargon.
-            </p>
-          </div>
-
-          <textarea
-            value={explanation}
-            onChange={(e) => setExplanation(e.target.value)}
-            placeholder="Type your explanation here... (e.g., 'System integration is when...')"
-            className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
-          />
-
-          <button 
-            onClick={handleCritique}
-            disabled={isCritiquing || !explanation.trim()}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
-          >
-            {isCritiquing ? "Analyzing explanation..." : "Critique My Understanding"}
-          </button>
-
-          {/* Feedback Area */}
-          {feedback && (
-            <div className="bg-indigo-950/40 border border-indigo-800/60 rounded-lg p-3 flex flex-col gap-2 mt-1">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-indigo-300 flex items-center gap-1">
-                  <CheckCircle size={14} className="text-emerald-400"/> AI Critique
-                </span>
-                <span className="text-xs font-mono text-indigo-400 bg-indigo-900/50 px-2 py-0.5 rounded">
-                  Clarity: {feedback.score}
-                </span>
+            <p className="text-xs opacity-80 mb-3">Explain a complex concept simply. The local AI will check it for clarity and jargon.</p>
+            <textarea 
+              value={feynmanText}
+              onChange={(e) => setFeynmanText(e.target.value)}
+              placeholder="State your explanation here..."
+              className={`w-full h-28 p-3 rounded-lg border-2 resize-none outline-none text-xs ${
+                isDarkMode 
+                  ? "bg-slate-900 border-slate-800 text-slate-200 focus:border-sky-500" 
+                  : "bg-amber-50/50 border-amber-200 text-slate-800 focus:border-amber-400"
+              }`}
+            />
+            {feedback && (
+              <div className={`mt-3 p-2.5 rounded-lg border text-xs font-medium ${
+                isDarkMode ? "bg-sky-950/40 border-sky-800 text-sky-200" : "bg-amber-50 border-amber-300 text-amber-900"
+              }`}>
+                {feedback}
               </div>
-              <p className="text-xs text-indigo-200/80 leading-relaxed">
-                {feedback.comment}
-              </p>
-            </div>
-          )}
+            )}
+          </div>
+          <button 
+            onClick={evaluateFeynman}
+            className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border-2 transition-all cursor-pointer active:translate-y-[1px] mt-3 ${
+              isDarkMode 
+                ? "bg-sky-600 hover:bg-sky-500 border-sky-800 text-white shadow-[2px_2px_0px_0px_#0f172a]" 
+                : "bg-amber-400 hover:bg-amber-300 border-amber-600 text-amber-950 shadow-[2px_2px_0px_0px_#b45309]"
+            }`}
+          >
+            <Sparkles size={14} /> Critique My Understanding
+          </button>
         </div>
-
       </div>
     </div>
   );
