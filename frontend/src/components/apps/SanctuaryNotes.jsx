@@ -35,9 +35,14 @@ export default function SanctuaryNotes() {
     setActiveNoteId(newNote.id);
   };
 
-  const deleteNote = (id, e) => {
+  const deleteNote = async (id, e) => {
     e.stopPropagation();
     playSound('close');
+
+    try {
+      await fetch(`http://localhost:8000/notes/${id}`, { method: "DELETE" });
+    } catch(err) { console.error(err); }
+
     const updated = notes.filter(n => n.id !== id);
     if (updated.length === 0) {
       const fallback = { id: Date.now(), title: 'Blank Note', content: '' };
@@ -57,7 +62,7 @@ export default function SanctuaryNotes() {
       await fetch("http://localhost:8000/notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: activeNote.content })
+        body: JSON.stringify({ id: activeNote.id, title: activeNote.title, text: activeNote.content })
       });
       setSavedStatus(true);
     } catch (err) {

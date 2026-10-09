@@ -2,6 +2,7 @@ import re, ollama, sqlite3
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
 
 MODEL = "llama3.2:3b"
 app = FastAPI(title="Stupidyante OS AI")
@@ -11,7 +12,11 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 DB_FILE = "stupidyante.db"
 def init_db():
     with sqlite3.connect(DB_FILE) as conn:
-        conn.execute("CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, text TEXT)")
+        conn.execute("CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, title TEXT, text TEXT)")
+        try:
+            conn.execute("ALTER TABLE notes ADD COLUMN title TEXT DEFAULT 'Untitled Note'")
+        except sqlite3.OperationalError:
+            pass
 init_db()
 
 def chat(system, user, schema=None):
@@ -45,26 +50,42 @@ def cor(b: Text):
     data.id_card_svg = generate_id_svg(data.studentName, data.studentId, data.program)
     return data
 
-class Note(BaseModel): text:str
+class Note(BaseModel): 
+    id: Optional[int] = None
+    title: str = "Untitled Note"
+    text: str
+
 @app.post("/notes")
 def save_note(n: Note):
     with sqlite3.connect(DB_FILE) as conn:
-        cursor = conn.execute("INSERT INTO notes (text) VALUES (?)", (n.text,))
+        if n.id:
+            conn.execute("UPDATE notes SET title = ?, text = ? WHERE id = ?", (n.title, n.text, n.id))
+            conn.commit()
+            return {"ok": True, "id": n.id}
+        else:
+            cursor = conn.execute("INSERT INTO notes (title, text) VALUES (?, ?)", (n.title, n.text))
+            conn.commit()
+            return {"ok": True, "id": cursor.lastrowid}
+
+@app.delete("/notes/{note_id}")
+def delete_note(note_id: int):
+    with sqlite3.connect(DB_FILE) as conn:
+        conn.execute("DELETE FROM notes WHERE id = ?", (note_id,))
         conn.commit()
-        return {"ok": True, "id": cursor.lastrowid}
+        return {"ok": True}
 
 @app.get("/notes")
 def get_all_notes():
     with sqlite3.connect(DB_FILE) as conn:
-        cursor = conn.execute("SELECT id, text FROM notes")
-        return [{"id": row[0], "text": row[1]} for row in cursor.fetchall()]
+        cursor = conn.execute("SELECT id, title, text FROM notes")
+        return [{"id": row[0], "title": row[1], "text": row[2]} for row in cursor.fetchall()]
 
 @app.get("/notes/{note_id}")
 def get_note(note_id: int):
      with sqlite3.connect(DB_FILE) as conn:
-        cursor = conn.execute("SELECT text FROM notes WHERE id = ?", (note_id,))
+        cursor = conn.execute("SELECT title, text FROM notes WHERE id = ?", (note_id,))
         row = cursor.fetchone()
-        return {"text": row[0]} if row else {"error": "Not found"}
+        return {"title": row[0], "text": row[1]} if row else {"error": "Not found"}
 
 @app.post("/summarize")
 def summarize(b: Text):
