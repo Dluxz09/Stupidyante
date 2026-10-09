@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #fdf3f0;
+  --color-blush: #f3dcd8;
+  --color-rose: #a65462;
+  --color-cocoa: #4a2c2e;
+  --font-serif: "Georgia", "Times New Roman", serif;
+}
+
+html, body, #root { height: 100%; margin: 0; overflow: hidden; }
+body { background: linear-gradient(135deg, #fff5f3, #f6e4e0); color: var(--color-cocoa); }
