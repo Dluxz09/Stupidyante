@@ -1,0 +1,28 @@
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.pytest_cache/
+*.sqlite3
+stupidyante.db
+
+# Node / React
+node_modules/
+dist/
+build/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+.vite/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# md
+md/
+project context.md
+AppBuildersPH Hackathon 2026 Participant Briefing.md

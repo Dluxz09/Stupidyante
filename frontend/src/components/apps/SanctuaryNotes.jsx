@@ -12,6 +12,7 @@ export default function SanctuaryNotes() {
   ]);
   const [activeNoteId, setActiveNoteId] = useState(1);
   const [savedStatus, setSavedStatus] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const activeNote = notes.find(n => n.id === activeNoteId) || notes[0];
 
@@ -34,9 +35,14 @@ export default function SanctuaryNotes() {
     setActiveNoteId(newNote.id);
   };
 
-  const deleteNote = (id, e) => {
+  const deleteNote = async (id, e) => {
     e.stopPropagation();
     playSound('close');
+
+    try {
+      await fetch(`http://localhost:8000/notes/${id}`, { method: "DELETE" });
+    } catch(err) { console.error(err); }
+
     const updated = notes.filter(n => n.id !== id);
     if (updated.length === 0) {
       const fallback = { id: Date.now(), title: 'Blank Note', content: '' };
@@ -45,6 +51,25 @@ export default function SanctuaryNotes() {
     } else {
       setNotes(updated);
       if (activeNoteId === id) setActiveNoteId(updated[0].id);
+    }
+  };
+
+  const handleSaveToBackend = async () => {
+    if (!activeNote.content.trim()) return;
+    playSound('pop');
+    setIsSaving(true);
+    try {
+      await fetch("http://localhost:8000/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activeNote.id, title: activeNote.title, text: activeNote.content })
+      });
+      setSavedStatus(true);
+    } catch (err) {
+      console.error("Failed to save to backend:", err);
+      alert("Error saving note to local database.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -113,13 +138,14 @@ export default function SanctuaryNotes() {
               }`}
             />
             <button 
-              onClick={() => { playSound('pop'); setSavedStatus(true); }}
-              className={`px-3 py-2.5 rounded-lg border-2 font-bold text-xs flex items-center gap-1 shrink-0 ${
+              onClick={handleSaveToBackend}
+              disabled={isSaving}
+              className={`px-3 py-2.5 rounded-lg border-2 font-bold text-xs flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-50 ${
                 savedStatus ? "bg-emerald-500 text-white border-emerald-700" : isDarkMode ? "bg-slate-800 border-slate-700 text-amber-300" : "bg-amber-100 border-amber-300 text-amber-900"
               }`}
               title="Save Note"
             >
-              <Save size={14} /> {savedStatus ? "Saved!" : "Save"}
+              <Save size={14} /> {isSaving ? "Saving..." : savedStatus ? "Saved!" : "Save"}
             </button>
           </div>
           <textarea 

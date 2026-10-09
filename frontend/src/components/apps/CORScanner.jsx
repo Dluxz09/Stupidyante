@@ -5,7 +5,30 @@ import { playSound } from '../../utils/sounds';
 
 export default function CORScanner() {
   const isDarkMode = useOSStore((state) => state.isDarkMode);
-  const [scanned, setScanned] = useState(false);
+  const [rawText, setRawText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [extractedData, setExtractedData] = useState(null);
+
+  const handleProcess = async () => {
+    if (!rawText.trim()) return;
+    setLoading(true);
+    playSound('pop');
+
+    try {
+      const res = await fetch("http://localhost:8000/cor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: rawText })
+      });
+      const data = await res.json();
+      setExtractedData(data);
+    } catch (err) {
+      console.error("Failed to parse COR:", err);
+      alert("Error parsing schedule with backend.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className={`h-full flex flex-col gap-6 font-mono text-sm ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
@@ -28,6 +51,8 @@ export default function CORScanner() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
         <div className="flex flex-col gap-3">
           <textarea 
+            value={rawText}
+            onChange={(e) => setRawText(e.target.value)}
             placeholder="Paste text copied from your COR here..."
             className={`w-full h-48 p-3 rounded-xl border-2 resize-none outline-none text-xs ${
               isDarkMode 
@@ -36,14 +61,15 @@ export default function CORScanner() {
             }`}
           />
           <button 
-            onClick={() => { playSound('pop'); setScanned(true); }}
-            className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 border-2 transition-all cursor-pointer active:translate-y-[1px] ${
+            onClick={handleProcess}
+            disabled={loading || !rawText}
+            className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 border-2 transition-all cursor-pointer active:translate-y-[1px] disabled:opacity-50 ${
               isDarkMode 
                 ? "bg-sky-600 hover:bg-sky-500 border-sky-800 text-white shadow-[2px_2px_0px_0px_#0f172a]" 
                 : "bg-amber-400 hover:bg-amber-300 border-amber-600 text-amber-950 shadow-[2px_2px_0px_0px_#b45309]"
             }`}
           >
-            <Sparkles size={16} /> Extract Details
+            <Sparkles size={16} /> {loading ? "Ollama Parsing..." : "Extract Details"}
           </button>
         </div>
 
@@ -52,12 +78,18 @@ export default function CORScanner() {
         }`}>
           <div>
             <h3 className="text-xs font-bold uppercase tracking-wider mb-3 opacity-70">Student ID Preview</h3>
+            {extractedData && extractedData.id_card_svg && (
+              <div 
+                className="w-full flex justify-center py-2 mb-2" 
+                dangerouslySetInnerHTML={{ __html: extractedData.id_card_svg }} 
+              />
+            )}
             <div className={`p-3 rounded-lg border text-xs space-y-2 ${
               isDarkMode ? "bg-slate-900 border-slate-800" : "bg-amber-50/50 border-amber-100"
             }`}>
-              <p><strong>Name:</strong> {scanned ? "Alex Rivera" : "Your Name Here"}</p>
-              <p><strong>Student No:</strong> {scanned ? "2026-08192" : "----"}</p>
-              <p><strong>Program:</strong> {scanned ? "B.S. Information Technology" : "----"}</p>
+              <p><strong>Name:</strong> {extractedData ? extractedData.studentName : "Your Name Here"}</p>
+              <p><strong>Student No:</strong> {extractedData ? extractedData.studentId : "----"}</p>
+              <p><strong>Program:</strong> {extractedData ? extractedData.program : "----"}</p>
             </div>
           </div>
           <div className="text-[10px] opacity-60">
