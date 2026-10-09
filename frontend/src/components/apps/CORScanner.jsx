@@ -1,92 +1,70 @@
 import { useState } from 'react';
-import { Scan, Sparkles, CheckCircle } from 'lucide-react';
+import { Scan, Sparkles, Check } from 'lucide-react';
+import { useOSStore } from '../../useOSStore';
+import { playSound } from '../../utils/sounds';
 
 export default function CORScanner() {
-  const [rawText, setRawText] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [extractedData, setExtractedData] = useState(null);
-
-  const handleProcess = () => {
-    if (!rawText.trim()) return;
-    setLoading(true);
-
-    // Mock AI Processing Delay (Replace with fetch to Java Backend later)
-    setTimeout(() => {
-      setExtractedData({
-        studentName: "John David",
-        studentId: "2023-10942-MN-0",
-        program: "BS Information Technology",
-        subjects: [
-          { code: "INTE 301", name: "System Integration", room: "LAB 3", schedule: "Mon 8:00 AM - 11:00 AM" },
-          { code: "COMP 202", name: "Data Structures", room: "RM 402", schedule: "Wed 1:00 PM - 4:00 PM" }
-        ]
-      });
-      setLoading(false);
-    }, 1500);
-  };
+  const isDarkMode = useOSStore((state) => state.isDarkMode);
+  const [scanned, setScanned] = useState(false);
 
   return (
-    <div className="h-full flex flex-col gap-4 text-slate-200">
-      <div className="flex justify-between items-center border-b border-slate-800 pb-2">
-        <h2 className="text-sm font-semibold flex items-center gap-2 text-cyan-400">
-          <Scan size={18} /> Certificate of Registration (COR) Parser
-        </h2>
-        <span className="text-[10px] bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded-full">
+    <div className={`h-full flex flex-col gap-6 font-mono text-sm ${isDarkMode ? "text-slate-100" : "text-slate-800"}`}>
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <Scan className={isDarkMode ? "text-sky-400" : "text-amber-600"} size={20} /> Certificate of Registration (COR) Parser
+          </h2>
+          <p className={`text-xs opacity-80 ${isDarkMode ? "text-slate-400" : "text-slate-600"}`}>
+            Paste raw text from university COR here to extract schedule and details.
+          </p>
+        </div>
+        <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold border ${
+          isDarkMode ? "bg-sky-950/50 border-sky-800 text-sky-300" : "bg-amber-100 border-amber-300 text-amber-900"
+        }`}>
           Air-Gapped Local Model
         </span>
       </div>
 
-      {!extractedData ? (
-        <div className="flex-1 flex flex-col gap-3">
-          <textarea
-            value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
-            placeholder="Paste raw text from university COR here (Names, Schedule, Subjects)..."
-            className="flex-1 w-full bg-slate-900 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-300 focus:outline-none focus:border-cyan-500 resize-none"
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+        <div className="flex flex-col gap-3">
+          <textarea 
+            placeholder="Paste text copied from your COR here..."
+            className={`w-full h-48 p-3 rounded-xl border-2 resize-none outline-none text-xs ${
+              isDarkMode 
+                ? "bg-[#101217] border-slate-700 text-slate-200 focus:border-sky-500" 
+                : "bg-white border-amber-200 text-slate-800 focus:border-amber-400"
+            }`}
           />
-          <button
-            onClick={handleProcess}
-            disabled={loading || !rawText}
-            className="bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition cursor-pointer"
+          <button 
+            onClick={() => { playSound('pop'); setScanned(true); }}
+            className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 border-2 transition-all cursor-pointer active:translate-y-[1px] ${
+              isDarkMode 
+                ? "bg-sky-600 hover:bg-sky-500 border-sky-800 text-white shadow-[2px_2px_0px_0px_#0f172a]" 
+                : "bg-amber-400 hover:bg-amber-300 border-amber-600 text-amber-950 shadow-[2px_2px_0px_0px_#b45309]"
+            }`}
           >
-            <Sparkles size={14} />
-            {loading ? "Ollama Parsing Schedule..." : "Extract Profile & Schedule"}
+            <Sparkles size={16} /> Extract Details
           </button>
         </div>
-      ) : (
-        <div className="flex-1 overflow-auto flex flex-col gap-4">
-          <div className="bg-slate-900 border border-emerald-500/30 rounded-lg p-4 flex gap-4 items-center">
-            <div className="w-12 h-12 bg-emerald-950 border border-emerald-600 rounded-full flex items-center justify-center text-emerald-400">
-              <CheckCircle size={24} />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-slate-100">{extractedData.studentName}</h3>
-              <p className="text-xs text-slate-400">{extractedData.program} | {extractedData.studentId}</p>
+
+        <div className={`p-4 rounded-xl border-2 flex flex-col justify-between ${
+          isDarkMode ? "bg-[#101217] border-slate-700" : "bg-white border-amber-200"
+        }`}>
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider mb-3 opacity-70">Student ID Preview</h3>
+            <div className={`p-3 rounded-lg border text-xs space-y-2 ${
+              isDarkMode ? "bg-slate-900 border-slate-800" : "bg-amber-50/50 border-amber-100"
+            }`}>
+              <p><strong>Name:</strong> {scanned ? "Alex Rivera" : "Your Name Here"}</p>
+              <p><strong>Student No:</strong> {scanned ? "2026-08192" : "----"}</p>
+              <p><strong>Program:</strong> {scanned ? "B.S. Information Technology" : "----"}</p>
             </div>
           </div>
-
-          <div className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-3">
-            <h4 className="text-xs font-semibold text-slate-400 mb-2">Parsed Schedule Deck</h4>
-            <div className="space-y-2">
-              {extractedData.subjects.map((sub, idx) => (
-                <div key={idx} className="bg-slate-950 p-2 rounded border border-slate-800 text-xs flex justify-between">
-                  <div>
-                    <span className="font-bold text-cyan-400">{sub.code}</span> - {sub.name}
-                  </div>
-                  <div className="text-slate-400">{sub.room} | {sub.schedule}</div>
-                </div>
-              ))}
-            </div>
+          <div className="text-[10px] opacity-60">
+            Securely processed on your local machine.
           </div>
-
-          <button
-            onClick={() => setExtractedData(null)}
-            className="text-xs text-slate-400 hover:text-white underline self-start"
-          >
-            Parse another COR
-          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
