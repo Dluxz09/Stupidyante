@@ -5,6 +5,8 @@ import { playSound } from '../../utils/sounds';
 
 export default function CORScanner() {
   const isDarkMode = useOSStore((state) => state.isDarkMode);
+  const setSchedule = useOSStore((state) => state.setSchedule);
+  
   const [rawText, setRawText] = useState('');
   const [loading, setLoading] = useState(false);
   const [extractedData, setExtractedData] = useState(null);
@@ -22,6 +24,15 @@ export default function CORScanner() {
       });
       const data = await res.json();
       setExtractedData(data);
+      
+      if (data.subjects && Array.isArray(data.subjects)) {
+        setSchedule(data.subjects.map(s => ({
+          id: Date.now() + Math.random(),
+          time: s.schedule || 'TBA',
+          course: `${s.code} - ${s.name}`,
+          room: s.room || 'TBA'
+        })));
+      }
     } catch (err) {
       console.error("Failed to parse COR:", err);
       alert("Error parsing schedule with backend.");

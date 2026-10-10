@@ -10,7 +10,6 @@ export default function BrainForge() {
   const [notes, setNotes] = useState([]);
   const [selectedNoteId, setSelectedNoteId] = useState('');
   const [questionCount, setQuestionCount] = useState(3);
-  const [model, setModel] = useState('Local AI - Ollama (Llama 3)');
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Quiz Session State
@@ -136,19 +135,7 @@ export default function BrainForge() {
 
 
 
-            <div>
-              <label className="text-[11px] font-bold block mb-1 opacity-80">Local AI Model</label>
-              <select 
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className={`w-full p-2 rounded-lg border-2 text-xs outline-none ${
-                  isDarkMode ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-amber-50/50 border-amber-200 text-slate-800"
-                }`}
-              >
-                <option value="Local AI - Ollama (Llama 3)">Local AI - Ollama (Llama 3)</option>
-                <option value="Local AI - Mistral 7B">Local AI - Mistral 7B</option>
-              </select>
-            </div>
+
           </div>
 
           <button 
@@ -257,7 +244,23 @@ export default function BrainForge() {
                 </button>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="flex flex-col items-center justify-center text-center gap-4 my-auto py-10 opacity-70">
+              {isGenerating ? (
+                <>
+                  <Sparkles size={36} className="text-amber-500 animate-spin" />
+                  <h3 className="text-sm font-bold">Ollama is forging your quiz...</h3>
+                  <p className="text-xs">Generating JSON structured multiple choice questions.</p>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={36} className="text-slate-400" />
+                  <h3 className="text-sm font-bold">Ready for practice!</h3>
+                  <p className="text-xs">Select a note on the left and hit regenerate to start.</p>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
       </div>

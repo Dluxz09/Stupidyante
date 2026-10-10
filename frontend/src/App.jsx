@@ -6,6 +6,7 @@ import SanctuaryNotes from './components/apps/SanctuaryNotes';
 import BrainForge from './components/apps/BrainForge';
 import EnvVault from './components/apps/EnvVault';
 import FocusHub from './components/apps/FocusHub';
+import LocalAgent from './components/LocalAgent';
 import { 
   FileText, Scan, Brain, Shield, Clock, 
   Sun, Moon, Volume2, Maximize, Sparkles, Heart, Calendar, Play, Pause, RotateCcw, Coffee
@@ -45,6 +46,7 @@ export default function App() {
   const [pomodoroSeconds, setPomodoroSeconds] = useState(25 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timerMode, setTimerMode] = useState('focus'); // 'focus' or 'break'
+  const [showAgent, setShowAgent] = useState(false);
 
   useEffect(() => {
     let interval = null;
@@ -161,15 +163,19 @@ export default function App() {
 
         {/* Floating AI Copilot Circle */}
         <button 
-          onClick={() => playSound('pop')}
+          onClick={() => { playSound('pop'); setShowAgent(!showAgent); }}
           title="Ask LocalAgent"
           className={`fixed bottom-20 right-8 z-[9000] w-16 h-16 rounded-full flex items-center justify-center transition-all cursor-pointer border-4 active:translate-y-1 active:shadow-none ${
+            showAgent ? "opacity-0 pointer-events-none" : "opacity-100"
+          } ${
             isDarkMode 
               ? "bg-sky-600 text-yellow-200 border-slate-700 shadow-[4px_4px_0px_0px_#0f172a] hover:bg-sky-500" 
               : "bg-amber-300 text-slate-900 border-amber-500 shadow-[4px_4px_0px_0px_#eab308] hover:bg-amber-200"
         }`}>
           <Sparkles size={26} strokeWidth={2.5} />
         </button>
+
+        {showAgent && <LocalAgent onClose={() => setShowAgent(false)} />}
 
         {/* Global Taskbar */}
         <div className={`fixed bottom-0 left-0 w-full h-14 border-t-4 px-4 flex items-center justify-between z-[9999] transition-colors duration-300 ${

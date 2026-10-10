@@ -6,12 +6,10 @@ import { useState, useEffect } from 'react';
 export default function FocusHub() {
   const isDarkMode = useOSStore((state) => state.isDarkMode);
   
-  // Editable schedule state
-  const [schedule, setSchedule] = useState([
-    { id: 1, time: '09:00 AM - 11:00 AM', course: 'INTE 301 - System Integration', room: 'Lab 4B' },
-    { id: 2, time: '01:00 PM - 03:00 PM', course: 'Database Administration', room: 'Room 302' },
-    { id: 3, time: '03:30 PM - 05:30 PM', course: 'Research Methods', room: 'Conference Hall' }
-  ]);
+  // Connect to global schedule store
+  const schedule = useOSStore((state) => state.schedule);
+  const addScheduleItemToStore = useOSStore((state) => state.addScheduleItem);
+  const removeScheduleItemFromStore = useOSStore((state) => state.removeScheduleItem);
 
   const [newTime, setNewTime] = useState('');
   const [newCourse, setNewCourse] = useState('');
@@ -37,10 +35,7 @@ export default function FocusHub() {
     e.preventDefault();
     if (!newCourse.trim()) return;
     playSound('pop');
-    setSchedule([
-      ...schedule,
-      { id: Date.now(), time: newTime || '10:00 AM', course: newCourse, room: newRoom || 'Room 101' }
-    ]);
+    addScheduleItemToStore({ id: Date.now(), time: newTime || '10:00 AM', course: newCourse, room: newRoom || 'Room 101' });
     setNewTime('');
     setNewCourse('');
     setNewRoom('');
@@ -48,7 +43,7 @@ export default function FocusHub() {
 
   const removeClassItem = (id) => {
     playSound('close');
-    setSchedule(schedule.filter(s => s.id !== id));
+    removeScheduleItemFromStore(id);
   };
 
   const evaluateFeynman = async () => {
