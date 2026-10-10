@@ -102,7 +102,7 @@ source venv/bin/activate
 Install the dependencies:
 
 ```bash
-python -m pip install fastapi uvicorn ollama pydantic
+python -m pip install fastapi uvicorn ollama pydantic google-genai python-dotenv
 ```
 
 Start the backend:
@@ -114,6 +114,12 @@ uvicorn main:app --reload
 The backend should be available at:
 
 `http://localhost:8000`
+
+### 2.5 (Optional) Gemini Cloud Hybrid Routing
+Stupidyante supports a Hybrid architecture that routes complex tasks to Gemini when online, and seamlessly falls back to Ollama when offline. To enable the cloud portion:
+1. Inside the `backend` folder, create a file named `.env`.
+2. Add your API key: `GEMINI_API_KEY=your_key_here`
+If you skip this step, the entire app will gracefully run 100% offline via Ollama.
 
 If FastAPI's interactive API documentation is enabled, you can inspect it at:
 
