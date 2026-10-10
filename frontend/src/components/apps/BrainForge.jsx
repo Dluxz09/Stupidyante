@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, ChevronRight, Check, X, RotateCcw, Sliders } from 'lucide-react';
 import { useOSStore } from '../../useOSStore';
 import { playSound } from '../../utils/sounds';
@@ -7,10 +7,10 @@ export default function BrainForge() {
   const isDarkMode = useOSStore((state) => state.isDarkMode);
   
   // Customization Settings State
-  const [studyMaterial, setStudyMaterial] = useState('Web Development Basics');
+  const [notes, setNotes] = useState([]);
+  const [selectedNoteId, setSelectedNoteId] = useState('');
   const [questionCount, setQuestionCount] = useState(3);
-  const [format, setFormat] = useState('Multiple choice');
-  const [model, setModel] = useState('Local AI - Ollama (Llama 3)');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Quiz Session State
   const [questions, setQuestions] = useState([]);
@@ -19,48 +19,47 @@ export default function BrainForge() {
   const [score, setScore] = useState(0);
   const [isFinished, setIsFinished] = useState(false);
 
-  // Generate dynamic questions based on user settings (Multiple Choice or True/False)
-  const handleRegenerate = (e) => {
-    if (e) e.preventDefault();
-    playSound('pop');
-
-    const generated = [];
-    for (let i = 1; i <= questionCount; i++) {
-      if (format === 'True or False') {
-        const isTrue = i % 2 !== 0;
-        generated.push({
-          id: i,
-          question: `[${studyMaterial}] True or False: React components manage internal state using hooks like useState.`,
-          options: [
-            { id: 'T', text: 'True', correct: isTrue },
-            { id: 'F', text: 'False', correct: !isTrue }
-          ]
-        });
-      } else {
-        generated.push({
-          id: i,
-          question: `[${studyMaterial}] Practice Question #${i}: What is a core principle or best practice in this topic?`,
-          options: [
-            { id: 'A', text: 'Maintain clean component structure and state flow', correct: true },
-            { id: 'B', text: 'Hardcode all configurations directly into global scope', correct: false },
-            { id: 'C', text: 'Ignore error handling and asynchronous callbacks', correct: false },
-            { id: 'D', text: 'Bypass version control entirely', correct: false }
-          ]
-        });
-      }
-    }
-
-    setQuestions(generated);
-    setCurrentIndex(0);
-    setSelectedOption(null);
-    setScore(0);
-    setIsFinished(false);
-  };
-
-  // Generate initial questions on first load if empty
-  useState(() => {
-    handleRegenerate();
+  // Fetch notes on load
+  useEffect(() => {
+    fetch("http://localhost:8000/notes")
+      .then(r => r.json())
+      .then(data => {
+        setNotes(data);
+        if (data.length > 0) setSelectedNoteId(data[0].id);
+      })
+      .catch(console.error);
   }, []);
+
+  // Generate dynamic questions based on user settings
+  const handleRegenerate = async (e) => {
+    if (e) e.preventDefault();
+    if (!selectedNoteId) {
+      alert("Please select a study material / note first.");
+      return;
+    }
+    playSound('pop');
+    setIsGenerating(true);
+
+    try {
+      const res = await fetch(`http://localhost:8000/quiz/${selectedNoteId}?count=${questionCount}`, {
+        method: "POST"
+      });
+      const data = await res.json();
+      
+      if (data.questions) {
+        setQuestions(data.questions);
+        setCurrentIndex(0);
+        setSelectedOption(null);
+        setScore(0);
+        setIsFinished(false);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Error generating quiz with AI.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const currentQ = questions[currentIndex] || questions[0];
 
@@ -111,16 +110,14 @@ export default function BrainForge() {
             <div>
               <label className="text-[11px] font-bold block mb-1 opacity-80">Study Material</label>
               <select 
-                value={studyMaterial}
-                onChange={(e) => setStudyMaterial(e.target.value)}
+                value={selectedNoteId}
+                onChange={(e) => setSelectedNoteId(e.target.value)}
                 className={`w-full p-2 rounded-lg border-2 text-xs outline-none ${
                   isDarkMode ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-amber-50/50 border-amber-200 text-slate-800"
                 }`}
               >
-                <option value="Web Development Basics">Web Development Basics</option>
-                <option value="Database Administration">Database Administration</option>
-                <option value="System Integration Architecture">System Integration Architecture</option>
-                <option value="Research Methodology">Research Methodology</option>
+                {notes.length === 0 ? <option value="">No notes available!</option> : null}
+                {notes.map(n => <option key={n.id} value={n.id}>{n.title || 'Untitled'}</option>)}
               </select>
             </div>
 
@@ -136,44 +133,21 @@ export default function BrainForge() {
               />
             </div>
 
-            <div>
-              <label className="text-[11px] font-bold block mb-1 opacity-80">Format</label>
-              <select 
-                value={format}
-                onChange={(e) => setFormat(e.target.value)}
-                className={`w-full p-2 rounded-lg border-2 text-xs outline-none ${
-                  isDarkMode ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-amber-50/50 border-amber-200 text-slate-800"
-                }`}
-              >
-                <option value="Multiple choice">Multiple choice</option>
-                <option value="True or False">True or False</option>
-              </select>
-            </div>
 
-            <div>
-              <label className="text-[11px] font-bold block mb-1 opacity-80">Local AI Model</label>
-              <select 
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className={`w-full p-2 rounded-lg border-2 text-xs outline-none ${
-                  isDarkMode ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-amber-50/50 border-amber-200 text-slate-800"
-                }`}
-              >
-                <option value="Local AI - Ollama (Llama 3)">Local AI - Ollama (Llama 3)</option>
-                <option value="Local AI - Mistral 7B">Local AI - Mistral 7B</option>
-              </select>
-            </div>
+
+
           </div>
 
           <button 
             onClick={handleRegenerate}
-            className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border-2 transition-all cursor-pointer active:translate-y-[1px] mt-2 ${
+            disabled={isGenerating}
+            className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border-2 transition-all cursor-pointer active:translate-y-[1px] mt-2 disabled:opacity-50 ${
               isDarkMode 
                 ? "bg-indigo-600 hover:bg-indigo-500 border-indigo-800 text-white shadow-[2px_2px_0px_0px_#0f172a]" 
                 : "bg-amber-400 hover:bg-amber-300 border-amber-600 text-amber-950 shadow-[2px_2px_0px_0px_#b45309]"
             }`}
           >
-            <Sparkles size={14} /> Regenerate Quiz
+            <Sparkles size={14} /> {isGenerating ? "Ollama Forging..." : "Regenerate Quiz"}
           </button>
         </div>
 
@@ -270,7 +244,23 @@ export default function BrainForge() {
                 </button>
               </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="flex flex-col items-center justify-center text-center gap-4 my-auto py-10 opacity-70">
+              {isGenerating ? (
+                <>
+                  <Sparkles size={36} className="text-amber-500 animate-spin" />
+                  <h3 className="text-sm font-bold">Ollama is forging your quiz...</h3>
+                  <p className="text-xs">Generating JSON structured multiple choice questions.</p>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={36} className="text-slate-400" />
+                  <h3 className="text-sm font-bold">Ready for practice!</h3>
+                  <p className="text-xs">Select a note on the left and hit regenerate to start.</p>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
       </div>

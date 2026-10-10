@@ -1,8 +1,17 @@
-import re, ollama, sqlite3
+import re, ollama, sqlite3, os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
+from dotenv import load_dotenv
+
+load_dotenv()
+try:
+    from google import genai
+    gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+except Exception as e:
+    print("Warning: Failed to init Gemini:", e)
+    gemini_client = None
 
 MODEL = "llama3.2:3b"
 app = FastAPI(title="Stupidyante OS AI")
@@ -18,6 +27,10 @@ def init_db():
         except sqlite3.OperationalError:
             pass
 init_db()
+
+@app.get("/")
+def read_root():
+    return {"message": "Stupidyante AI Backend is running beautifully! 🚀"}
 
 def chat(system, user, schema=None):
     r = ollama.chat(model=MODEL,
@@ -91,8 +104,19 @@ def get_note(note_id: int):
 def summarize(b: Text):
     return {"summary": chat("Summarize in 5 short bullet points for a student.", b.text)}
 
-class Flashcard(BaseModel): front:str; back:str
-class Deck(BaseModel): cards:list[Flashcard]
+class Option(BaseModel):
+    id: str
+    text: str
+    correct: bool
+
+class Question(BaseModel):
+    id: int
+    question: str
+    options: list[Option]
+
+class QuizDeck(BaseModel):
+    questions: list[Question]
+
 @app.post("/quiz/{note_id}")
 def quiz(note_id:int, count:int=5):
     with sqlite3.connect(DB_FILE) as conn:
@@ -102,9 +126,9 @@ def quiz(note_id:int, count:int=5):
     if not row:
         return {"error": "Note not found"}
         
-    return Deck.model_validate_json(chat(
-      f"Create {count} study flashcards (front and back) based ONLY on the note.",
-      row[0], Deck.model_json_schema()))
+    return QuizDeck.model_validate_json(chat(
+      f"Create a {count}-question multiple choice quiz based ONLY on the note. Options must be A, B, C, D. Only one correct option per question.",
+      row[0], QuizDeck.model_json_schema()))
 
 class AuditItem(BaseModel): type:str; msg:str
 class AuditLog(BaseModel): log:list[AuditItem]
@@ -131,3 +155,43 @@ def feynman(b: Feynman):
     return FeynmanFeedback.model_validate_json(chat(
         "You are a Feynman-technique tutor. Critique the explanation against the source notes. Provide a percentage score (e.g. '85%') and a comment pointing out jargon/gaps.\n\nNOTES:\n"+note_text, 
         b.explanation, FeynmanFeedback.model_json_schema()))
+
+class CopilotRequest(BaseModel):
+    prompt: str
+    context: str
+
+@app.post("/chat")
+def copilot_chat(req: CopilotRequest):
+    global gemini_client
+    # Force initialize if it failed earlier (e.g. before API key was saved)
+    if not gemini_client:
+        try:
+            load_dotenv()
+            if os.getenv("GEMINI_API_KEY"):
+                gemini_client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        except Exception as e:
+            print("Dynamic init failed:", e)
+
+    system_prompt = f"You are a LocalAgent Copilot for an offline-first academic OS. Keep responses short and helpful.\n\nUSER OS CONTEXT:\n{req.context}"
+    
+    # Try Gemini (Online)
+    if gemini_client and os.getenv("GEMINI_API_KEY"):
+        try:
+            print("Attempting Gemini connection...")
+            response = gemini_client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=f"System: {system_prompt}\n\nUser: {req.prompt}",
+            )
+            return {"reply": response.text, "model": "Gemini (Cloud)"}
+        except Exception as e:
+            print(f"Gemini failed (likely offline). Falling back to Ollama. Error: {e}")
+    else:
+        print("No Gemini API key found, bypassing Cloud.")
+
+    # Fallback to Ollama (Offline)
+    print("Routing to Local Ollama...")
+    try:
+        reply = chat(system_prompt, req.prompt)
+        return {"reply": reply, "model": "Ollama (Local)"}
+    except Exception as e:
+        return {"error": str(e)}

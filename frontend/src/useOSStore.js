@@ -4,6 +4,11 @@ export const useOSStore = create((set) => ({
   openWindows: {}, 
   activeZIndex: 10,
   isDarkMode: true, 
+  
+  schedule: [],
+  setSchedule: (schedule) => set({ schedule }),
+  addScheduleItem: (item) => set((state) => ({ schedule: [...state.schedule, item] })),
+  removeScheduleItem: (id) => set((state) => ({ schedule: state.schedule.filter(s => s.id !== id) })),
 
   toggleTheme: () => set((state) => ({ isDarkMode: !state.isDarkMode })),
 
