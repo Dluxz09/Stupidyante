@@ -1,7 +1,7 @@
 import { Calendar, Sparkles, Clock, BookOpen, Layers, Plus, Trash2 } from 'lucide-react';
 import { useOSStore } from '../../useOSStore';
 import { playSound } from '../../utils/sounds';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function FocusHub() {
   const isDarkMode = useOSStore((state) => state.isDarkMode);
@@ -19,6 +19,19 @@ export default function FocusHub() {
   
   const [feynmanText, setFeynmanText] = useState('');
   const [feedback, setFeedback] = useState(null);
+  const [notes, setNotes] = useState([]);
+  const [selectedNoteId, setSelectedNoteId] = useState('');
+  const [isEvaluating, setIsEvaluating] = useState(false);
+
+  useEffect(() => {
+    fetch("http://localhost:8000/notes")
+      .then(r => r.json())
+      .then(data => {
+        setNotes(data);
+        if (data.length > 0) setSelectedNoteId(data[0].id);
+      })
+      .catch(console.error);
+  }, []);
 
   const addClassItem = (e) => {
     e.preventDefault();
@@ -38,13 +51,28 @@ export default function FocusHub() {
     setSchedule(schedule.filter(s => s.id !== id));
   };
 
-  const evaluateFeynman = () => {
+  const evaluateFeynman = async () => {
     playSound('pop');
-    if (!feynmanText.trim()) {
-      setFeedback('Please write a short explanation first!');
+    if (!feynmanText.trim() || !selectedNoteId) {
+      setFeedback({ comment: 'Please select a note and write a short explanation first!' });
       return;
     }
-    setFeedback("✨ Local AI Critique: Great intuitive explanation! Minimal jargon detected. Solid mental model.");
+    setIsEvaluating(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("http://localhost:8000/feynman", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note_id: Number(selectedNoteId), explanation: feynmanText })
+      });
+      const data = await res.json();
+      setFeedback(data);
+    } catch (err) {
+      console.error(err);
+      setFeedback({ comment: "Error connecting to AI." });
+    } finally {
+      setIsEvaluating(false);
+    }
   };
 
   return (
@@ -146,6 +174,16 @@ export default function FocusHub() {
               <BookOpen size={14} /> Feynman Technique Simulator
             </h3>
             <p className="text-xs opacity-80 mb-3">Explain a complex concept simply. The local AI will check it for clarity and jargon.</p>
+            <select 
+              value={selectedNoteId}
+              onChange={e => setSelectedNoteId(e.target.value)}
+              className={`w-full mb-3 p-2 rounded-lg border-2 text-xs outline-none ${
+                isDarkMode ? "bg-slate-900 border-slate-800 text-slate-100" : "bg-amber-50/50 border-amber-200 text-slate-800"
+              }`}
+            >
+              {notes.length === 0 ? <option value="">No notes available. Create one first!</option> : null}
+              {notes.map(n => <option key={n.id} value={n.id}>{n.title || 'Untitled'}</option>)}
+            </select>
             <textarea 
               value={feynmanText}
               onChange={(e) => setFeynmanText(e.target.value)}
@@ -157,22 +195,24 @@ export default function FocusHub() {
               }`}
             />
             {feedback && (
-              <div className={`mt-3 p-2.5 rounded-lg border text-xs font-medium ${
+              <div className={`mt-3 p-3 rounded-lg border text-xs font-medium ${
                 isDarkMode ? "bg-sky-950/40 border-sky-800 text-sky-200" : "bg-amber-50 border-amber-300 text-amber-900"
               }`}>
-                {feedback}
+                {feedback.score && <div className="font-bold text-sm mb-1">Score: {feedback.score}</div>}
+                {feedback.comment}
               </div>
             )}
           </div>
           <button 
             onClick={evaluateFeynman}
-            className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border-2 transition-all cursor-pointer active:translate-y-[1px] mt-3 ${
+            disabled={isEvaluating}
+            className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border-2 transition-all cursor-pointer active:translate-y-[1px] mt-3 disabled:opacity-50 ${
               isDarkMode 
                 ? "bg-sky-600 hover:bg-sky-500 border-sky-800 text-white shadow-[2px_2px_0px_0px_#0f172a]" 
                 : "bg-amber-400 hover:bg-amber-300 border-amber-600 text-amber-950 shadow-[2px_2px_0px_0px_#b45309]"
             }`}
           >
-            <Sparkles size={14} /> Critique My Understanding
+            <Sparkles size={14} /> {isEvaluating ? "Ollama Evaluates..." : "Critique My Understanding"}
           </button>
         </div>
       </div>

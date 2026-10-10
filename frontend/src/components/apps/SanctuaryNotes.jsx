@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Plus, Save, Trash2 } from 'lucide-react';
 import { useOSStore } from '../../useOSStore';
 import { playSound } from '../../utils/sounds';
@@ -6,15 +6,30 @@ import { playSound } from '../../utils/sounds';
 export default function SanctuaryNotes() {
   const isDarkMode = useOSStore((state) => state.isDarkMode);
   
-  const [notes, setNotes] = useState([
-    { id: 1, title: 'Web Development Basics', content: 'React is a JavaScript library for building user interfaces. Components are reusable pieces of UI.' },
-    { id: 2, title: 'Database Administration', content: 'Remember to index foreign keys and optimize MySQL queries using EXPLAIN.' }
-  ]);
-  const [activeNoteId, setActiveNoteId] = useState(1);
+  const [notes, setNotes] = useState([]);
+  const [activeNoteId, setActiveNoteId] = useState(null);
   const [savedStatus, setSavedStatus] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const activeNote = notes.find(n => n.id === activeNoteId) || notes[0];
+  useEffect(() => {
+    fetch("http://localhost:8000/notes")
+      .then(res => res.json())
+      .then(data => {
+        // map backend text -> content
+        const mapped = data.map(n => ({ id: n.id, title: n.title, content: n.text }));
+        if (mapped.length === 0) {
+          const fallback = { id: 'temp-' + Date.now(), title: 'Untitled Note', content: '' };
+          setNotes([fallback]);
+          setActiveNoteId(fallback.id);
+        } else {
+          setNotes(mapped);
+          setActiveNoteId(mapped[0].id);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  const activeNote = notes.find(n => n.id === activeNoteId) || (notes[0] || {title:'', content:''});
 
   const updateTitle = (e) => {
     const val = e.target.value;
@@ -30,7 +45,7 @@ export default function SanctuaryNotes() {
 
   const createNewNote = () => {
     playSound('pop');
-    const newNote = { id: Date.now(), title: 'Untitled Note', content: '' };
+    const newNote = { id: 'temp-' + Date.now(), title: 'Untitled Note', content: '' };
     setNotes([newNote, ...notes]);
     setActiveNoteId(newNote.id);
   };
@@ -45,7 +60,7 @@ export default function SanctuaryNotes() {
 
     const updated = notes.filter(n => n.id !== id);
     if (updated.length === 0) {
-      const fallback = { id: Date.now(), title: 'Blank Note', content: '' };
+      const fallback = { id: 'temp-' + Date.now(), title: 'Untitled Note', content: '' };
       setNotes([fallback]);
       setActiveNoteId(fallback.id);
     } else {
@@ -58,12 +73,29 @@ export default function SanctuaryNotes() {
     if (!activeNote.content.trim()) return;
     playSound('pop');
     setIsSaving(true);
+    
+    // If it's a temporary local note, don't send the temp string ID so the backend auto-generates a real one
+    const isTemp = typeof activeNote.id === 'string' && activeNote.id.startsWith('temp-');
+    const payload = {
+      title: activeNote.title,
+      text: activeNote.content
+    };
+    if (!isTemp) payload.id = activeNote.id;
+
     try {
-      await fetch("http://localhost:8000/notes", {
+      const res = await fetch("http://localhost:8000/notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: activeNote.id, title: activeNote.title, text: activeNote.content })
+        body: JSON.stringify(payload)
       });
+      const data = await res.json();
+      
+      if (isTemp && data.id) {
+        // Update the local state with the real database ID
+        setNotes(notes.map(n => n.id === activeNote.id ? { ...n, id: data.id } : n));
+        setActiveNoteId(data.id);
+      }
+      
       setSavedStatus(true);
     } catch (err) {
       console.error("Failed to save to backend:", err);
@@ -112,11 +144,9 @@ export default function SanctuaryNotes() {
               }`}
             >
               <span className="truncate text-xs">{note.title || 'Untitled Note'}</span>
-              {notes.length > 1 && (
-                <button onClick={(e) => deleteNote(note.id, e)} className="text-rose-500 hover:opacity-80 p-1">
-                  <Trash2 size={12} />
-                </button>
-              )}
+              <button onClick={(e) => deleteNote(note.id, e)} className="text-rose-500 hover:opacity-80 p-1">
+                <Trash2 size={12} />
+              </button>
             </div>
           ))}
         </div>

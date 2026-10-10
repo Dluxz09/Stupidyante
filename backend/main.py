@@ -91,8 +91,19 @@ def get_note(note_id: int):
 def summarize(b: Text):
     return {"summary": chat("Summarize in 5 short bullet points for a student.", b.text)}
 
-class Flashcard(BaseModel): front:str; back:str
-class Deck(BaseModel): cards:list[Flashcard]
+class Option(BaseModel):
+    id: str
+    text: str
+    correct: bool
+
+class Question(BaseModel):
+    id: int
+    question: str
+    options: list[Option]
+
+class QuizDeck(BaseModel):
+    questions: list[Question]
+
 @app.post("/quiz/{note_id}")
 def quiz(note_id:int, count:int=5):
     with sqlite3.connect(DB_FILE) as conn:
@@ -102,9 +113,9 @@ def quiz(note_id:int, count:int=5):
     if not row:
         return {"error": "Note not found"}
         
-    return Deck.model_validate_json(chat(
-      f"Create {count} study flashcards (front and back) based ONLY on the note.",
-      row[0], Deck.model_json_schema()))
+    return QuizDeck.model_validate_json(chat(
+      f"Create a {count}-question multiple choice quiz based ONLY on the note. Options must be A, B, C, D. Only one correct option per question.",
+      row[0], QuizDeck.model_json_schema()))
 
 class AuditItem(BaseModel): type:str; msg:str
 class AuditLog(BaseModel): log:list[AuditItem]
